@@ -46,6 +46,7 @@ header{position:sticky;top:0;z-index:100;background:rgba(13,13,26,.96);border-bo
 .live{display:flex;align-items:center;gap:6px;background:rgba(138,115,64,.08);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:10px;color:var(--gold2)}
 .live b{width:7px;height:7px;background:#22c55e;border-radius:50%;display:inline-block;animation:blink 1.5s ease infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes pulse-gold{0%,100%{box-shadow:0 0 0 0 rgba(184,160,96,.4)}50%{box-shadow:0 0 0 6px rgba(184,160,96,0)}}
 
 main{max-width:700px;margin:0 auto;padding:26px 16px 100px}
 
@@ -339,7 +340,7 @@ window.addEventListener("DOMContentLoaded", () => {
   setupChips("fmtChips",  v => S.fmt = v);
   setupChips("sizeChips", v => S.size = v);
   setupChips("cntChips",  v => S.cardCount = parseInt(v));
-  setupChips("toneChips", v => S.tone = v);
+  setupChips("toneChips", v => { S.tone = v; S._userChoseTone = true; });
   document.getElementById("topic").addEventListener("keydown", e => { if(e.key==="Enter") generate(); });
 });
 
@@ -369,95 +370,247 @@ async function generate() {
   document.getElementById("results").style.display="none";
   document.getElementById("loading").style.display="block";
   document.getElementById("genBtn").disabled=true;
-  document.getElementById("loadMsg").textContent="Pesquisando e verificando dados…";
-  document.getElementById("loadSub").textContent="Buscando informações precisas antes de criar";
+  // Auto-suggest tone if user didn't manually choose
+  const toneNames = {educativo:"Educativo 🎓",autoridade:"Autoridade ⚖️",empatico:"Empático 🤝",urgencia:"Urgência 🚨",provocativo:"Provocativo 🔥"};
+  const topicLowerCheck = topic.toLowerCase();
+  if (!S._userChoseTone) {
+    let suggested = "educativo";
+    if (/demit|rescis|justa causa|punid|assédio|humilh|abuso/.test(topicLowerCheck)) suggested="empatico";
+    else if (/prazo|prescri|5.*dia|dia.*util|agora|perco/.test(topicLowerCheck)) suggested="urgencia";
+    else if (/esconde|nao conta|medo|proibido|ilegal|crime/.test(topicLowerCheck)) suggested="provocativo";
+    else if (/lei|clt|art\.|sumula|jurisprud|tribunal/.test(topicLowerCheck)) suggested="autoridade";
+    if (suggested !== S.tone) {
+      // Highlight suggested tone chip
+      document.querySelectorAll("#toneChips .chip").forEach(b => {
+        b.classList.toggle("on", b.dataset.val === suggested);
+        if(b.dataset.val === suggested) b.style.animation="pulse-gold 1s ease 2";
+      });
+      S.tone = suggested;
+    }
+  }
+  document.getElementById("loadMsg").textContent="Criando conteúdo de impacto…";
+  document.getElementById("loadSub").textContent = "Tom: " + toneNames[S.tone] + " · Verificando dados e gerando cards";
 
-  const toneMap = {
-    educativo:"tom educativo, claro, acessivel e empático para trabalhadores leigos",
-    autoridade:"tom firme, seguro e de autoridade juridica, como um especialista respeitado",
-    empatico:"tom proximo, humano e empatico, como um amigo especialista que se preocupa",
-    urgencia:"tom urgente e alarmante, destacando riscos reais que o trabalhador corre",
-    provocativo:"tom provocativo e revelador, expondo o que a empresa tenta esconder"
-  };
-  const fmtMap = {
-    educativo:"carrossel educativo com progressao logica, do problema a solucao",
-    lista:"lista objetiva de itens com numeros ou marcadores",
-    mitos:"mitos e verdades, alternando conceito errado vs realidade juridica",
-    pergunta:"perguntas e respostas diretas sobre duvidas comuns dos trabalhadores",
-    antes_depois:"antes e depois: o trabalhador nao sabia X, agora sabe e pode agir",
-    direitos:"guia dos direitos trabalhistas sobre o tema, passo a passo"
-  };
-  const sizeInstr = S.size==="curto"
-    ? "REGRA DE ESCRITA — FRASES CURTAS: cada card tem 1 unica ideia central. Body maximo 20 palavras. Linguagem direta, sem enrolacao. Estilo jornalistico de impacto."
-    : "REGRA DE ESCRITA — FRASES LONGAS: cada card tem explicacao completa. Body 40-55 palavras. Linguagem educativa, clara, sem juridiques.";
 
+
+  // ── CONTEXT ──────────────────────────────────────────────────
   const hoje = new Date();
-  const dataHoje = hoje.toLocaleDateString("pt-BR", {weekday:"long",year:"numeric",month:"long",day:"numeric"});
-
+  const dataHoje = hoje.toLocaleDateString("pt-BR",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
   let cc = S.cardCount - (S.contact?1:0) - (S.tap?1:0);
   if(cc<1) cc=1;
 
-  // Detect if topic needs real-time data research
-  const needsResearch = DATE_KEYWORDS.some(k=>topic.toLowerCase().includes(k));
+  // ── AUTO-SUGGEST TOM baseado no assunto ──────────────────────
+  const topicLower = topic.toLowerCase();
+  let autoTone = S.tone;
+  if (!S._userChoseTone) {
+    if (/demit|rescis|justa causa|punid|ameaç|assédio|humilh|abuso/.test(topicLower)) autoTone = "empatico";
+    else if (/prazo|prescri|urgente|imediato|5.*dia|dia.*util|agora|perco|perd/.test(topicLower)) autoTone = "urgencia";
+    else if (/empresa esconde|nao conta|medo|proibido|ilegal|crime|truque/.test(topicLower)) autoTone = "provocativo";
+    else if (/direito|lei|clt|art\.|sumula|jurisprud|tribunal/.test(topicLower)) autoTone = "autoridade";
+    else autoTone = "educativo";
+  }
 
-  const researchInstr = needsResearch ? `
-ATENÇÃO CRITICA — DADOS SENSIVEIS A DATAS DETECTADOS:
-O assunto envolve datas, prazos ou feriados. Voce DEVE:
-1. Calcular corretamente com base na data de hoje: ${dataHoje}
-2. Sábado CONTA como dia util para pagamento de salario (CLT + CMN)
-3. Domingo e feriados NAO contam como dia util
-4. Corpus Christi é ponto facultativo nacional mas feriado em muitos municipios
-5. NUNCA invente datas — calcule ou declare incerteza
-6. Se nao tiver certeza de um feriado especifico, indique que pode variar por municipio
-7. Verifique: junho de 2026 comeca na segunda-feira, dia 1. Corpus Christi cai em 04/06/2026 (quinta). Portanto: 1°=seg(1), 2°=ter(2), 3°=qua(3), 4°=sex(5), 5°=sab(6). O 5° dia util de junho 2026 e SABADO, 06/06/2026.
-` : "";
+  // ── DATAS ────────────────────────────────────────────────────
+  const needsDate = DATE_KEYWORDS.some(k=>topicLower.includes(k));
+  const dateCtx = needsDate ? `
+DATAS — regras obrigatórias:
+• Hoje: ${dataHoje}
+• Sábado CONTA como dia útil para pagamento (CLT Art.459 + CMN). Domingo e feriados NÃO contam.
+• Junho 2026: começa 2ª dia 1. Corpus Christi 04/06 (5ª) = feriado na maioria das cidades. 5° dia útil = SÁBADO 06/06/2026.
+• NUNCA invente data. Se houver dúvida, escreva "verifique o calendário da sua cidade".` : "";
 
-  const lines = [
-    "Voce e um advogado trabalhista senior especializado em marketing juridico no Instagram.",
-    "Seu objetivo e criar conteudo que eduque trabalhadores brasileiros sobre seus direitos CLT,",
-    "gere engajamento real (salvar, compartilhar) e posicione o Dr. Pedro Martins como referencia.",
-    "",
-    `TAREFA: Criar ${fmtMap[S.fmt]} com EXATAMENTE ${cc} cards sobre: "${topic}"`,
-    `Tom: ${toneMap[S.tone]}`,
-    `Escritorio: ${firmName}`,
-    `Data atual: ${dataHoje}`,
-    "",
-    sizeInstr,
-    researchInstr,
-    "",
-    "REGRAS DE QUALIDADE JURIDICA:",
-    "- Cite artigos da CLT quando relevante (ex: Art. 459, §1°)",
-    "- Nao invente fatos, datas ou valores — use dados corretos ou diga 'depende do caso'",
-    "- Linguagem acessivel: evite juridiques, use exemplos do dia a dia",
-    "- Cada card deve ter 1 titulo de impacto e 1 corpo claro",
-    "",
-    "REGRA DO BADGE (canto superior esquerdo dos cards):",
-    "O campo 'badge' deve ser SEMPRE o tema/subtema especifico do card, nao o assunto geral.",
-    `Exemplo: se o assunto e '5 dia util', badges podem ser: 'O QUE E DIA UTIL', 'JUNHO 2026', 'SEUS DIREITOS', 'SE ATRASOU'.`,
-    "Maximo 3 palavras, letras maiusculas.",
-    "",
-    "RETORNE APENAS JSON VALIDO — sem markdown, sem texto antes ou depois:",
-    '{"cards":[{"badge":"TEMA DO CARD","title":"TITULO COM [DESTAQUE EM VERMELHO]","body":"corpo","cta":"chamada de acao curta"}],"caption":"legenda completa","hashtags":"3 hashtags"}',
-    "",
-    "REGRAS DO TITULO: coloque entre [colchetes] a palavra ou frase mais impactante — ela ficara em vermelho.",
-    'Exemplos fortes: "VOCÊ SABE QUANDO CAI O [5° DIA UTIL] DE JUNHO?" | "SALARIO ATRASADO? A EMPRESA [ESTA ERRADA]"',
-    "",
-    "REGRAS DA LEGENDA (MUITO IMPORTANTE):",
-    "- Primeira linha obrigatoria: @drpedromartins",
-    "- Segunda linha: gancho forte, max 125 caracteres (aparece antes do 'ver mais')",
-    "- Uma linha em branco entre cada paragrafo",
-    "- Emoji relevante no inicio de cada paragrafo",
-    "- 3 a 4 paragrafos de conteudo util, direto e verdadeiro",
-    "- NUNCA mencione datas ou fatos sem ter certeza",
-    "- Ultima parte (exatamente assim, com quebras de linha):",
-    `${firmName}`,
-    `WhatsApp: ${WPP}`,
-    `${SITE}`,
-    "",
-    `Card 1 = gancho impactante | Cards 2-${cc-1} = conteudo | Card ${cc} = CTA para contratar`
-  ];
+  // ── VOZ POR TOM ───────────────────────────────────────────────
+  const VOZ = {
+    educativo:`VOZ: amigo especialista no WhatsApp. Explica como se fosse para um familiar. Sem juridiquês. "Na prática..." / "Isso significa que..." / "Traduzindo:"`,
+    autoridade:`VOZ: especialista que o trabalhador precisa. Afirmativo, cita a lei como confirmação não como enfeite. "A CLT é clara: Art.X°" / "O TST já decidiu" / "Tecnicamente ilegal."`,
+    empatico:`VOZ: advogado que entende a dor. Valida primeiro, resolve depois. "Isso machuca e é injusto." / "Você não está sozinho." / "Muita gente passa por isso — e tem saída."`,
+    urgencia:`VOZ: alerta real, não drama. Cada dia tem um custo concreto. "Isso prescreve." / "A empresa já está se protegendo." / "Não deixe para amanhã — a prova some."`,
+    provocativo:`VOZ: revela o que a empresa não quer que você saiba. Indignação controlada e fatos. "A empresa sabe disso e torce para você não descobrir." / "Isso não é coincidência — é estratégia."`
+  }[autoTone];
 
-  const prompt = lines.filter(x=>x!==null).join("\n");
+  // ── BLUEPRINT POR FORMATO ─────────────────────────────────────
+  const BLUEPRINT = {
+
+    educativo:`FORMATO EDUCATIVO
+Regra geral: narrativa do problema → entendimento → solução → ação.
+Cada card avança um passo lógico. Não repete o anterior.
+
+Card 1 — GANCHO: Situação real que o trabalhador reconhece como sua. O título deve fazer a pessoa pensar "isso acontece comigo".
+Fórmulas: "TRABALHOU O MÊS TODO. [SALÁRIO NÃO CAIU]. O QUE FAZER?" | "SEU CHEFE TE CHAMA FORA DO HORÁRIO? [VOCÊ PODE COBRAR]"
+
+Cards 2 a ${cc-1} — CONTEÚDO: 1 conceito ou 1 passo por card. Do simples ao acionável.
+Cada card deve entregar algo que o trabalhador pode usar — não só entender.
+
+Card ${cc} — CTA: O que fazer HOJE. Específico ("Manda print das conversas") não genérico ("Conheça seus direitos").`,
+
+    lista:`FORMATO LISTA DE REVELAÇÕES
+Regra: NÃO é uma lista de informações. É uma lista de coisas que surpreendem, indignam ou empoderam.
+
+Card 1 — GANCHO: Título que anuncia a lista de modo que choca ou provoca.
+Fórmulas que funcionam:
+"${cc-1} COISAS QUE O PATRÃO [NÃO PODE FAZER] — E FAZ TODO DIA"
+"${cc-1} DIREITOS QUE VOCÊ TEM E [NUNCA VÃO TE CONTAR]"
+"${cc-1} ERROS QUE [DESTROEM SUA AÇÃO TRABALHISTA]"
+"${cc-1} DOCUMENTOS QUE VOCÊ [NUNCA DEVERIA ASSINAR]"
+
+Cards 2 a ${cc} — UM ITEM POR CARD:
+• Badge: "1 DE ${cc-1}", "2 DE ${cc-1}", etc — sempre numerado
+• Título: a revelação em si, com [destaque] na parte mais impactante
+  Ex: "1. MENSAGEM NO WHATSAPP [É PROVA NA JUSTIÇA]"
+• Body: por que isso importa para este trabalhador + o que fazer agora
+  Ex: "Conversa com seu chefe pedindo hora extra vale como prova. Não apague. Faça print e salve na nuvem agora."`,
+
+    mitos:`FORMATO MITOS E VERDADES
+Regra: Quebre crenças que custam dinheiro ao trabalhador. Alterne: Mito → Verdade → Mito → Verdade.
+
+Card 1 — GANCHO: O mito mais perigoso e comum do tema.
+Fórmulas: "ESSE [MITO TRABALHISTA] JÁ CUSTOU MUITO DINHEIRO" | "PARE DE ACREDITAR NISSO — [ESTÁ ERRADO E CARO]"
+
+Cards ímpares — MITO (título começa com "MITO:"):
+Título: "MITO: [SE EU PEDIR DEMISSÃO PERCO TUDO]"
+Body: Por que o trabalhador acredita + qual o risco de agir com base nessa crença errada.
+
+Cards pares — VERDADE (título começa com "VERDADE:"):
+Título: "VERDADE: RESCISÃO INDIRETA — [VOCÊ SAI E ELA PAGA]"
+Body: A realidade legal em linguagem simples + artigo CLT ou súmula TST + o que fazer.
+
+Mito e Verdade devem ser sobre o MESMO aspecto — o par deve fazer sentido junto.`,
+
+    pergunta:`FORMATO PERGUNTA E RESPOSTA
+Regra: Use as perguntas reais que chegam no WhatsApp e no direct. Não invente perguntas formais.
+
+Card 1 — GANCHO: A pergunta que mais assusta ou que mais o trabalhador tem medo de fazer.
+Fórmulas: "SE EU RECLAMEI DA EMPRESA, [PODEM ME DEMITIR POR ISSO]?" | "ASSINE O PDC — [VOCÊ PERDE O QUÊ EXATAMENTE]?"
+
+Cards 2 a ${cc} — UMA PERGUNTA POR CARD:
+• Badge: o TEMA da pergunta (ex: "HORAS EXTRAS", "JUSTA CAUSA", "FGTS")
+• Título: A pergunta exata como o trabalhador faz — coloquial, direta, com [destaque] na parte mais importante
+• Body: A resposta direta, sem enrolação. Estrutura: SIM/NÃO + explicação prática + o que fazer se se aplicar
+  Ex: "SIM, podem — mas têm que pagar tudo. Demissão de represália é ilegal (CLT Art.9°). Guarde as provas da reclamação."`,
+
+    antes_depois:`FORMATO ANTES E DEPOIS
+Regra: Mostre a transformação de consciência. ANTES = ignorância cara. DEPOIS = conhecimento que empodra.
+
+Card 1 — GANCHO: O contraste mais chocante do tema.
+Fórmulas: "ANTES: ASSINAVA TUDO QUE MANDAVAM. DEPOIS: [SOUBE QUE ME DEVIAM MUITO]" | "ANTES: ACHAVA QUE NÃO TINHA SAÍDA. DEPOIS: [RECEBI TUDO]"
+
+Cards 2 a ${cc} — UMA SITUAÇÃO POR CARD (estrutura obrigatória):
+• Badge: o tema da transformação (ex: "AVISO PRÉVIO", "PDC", "HORA EXTRA")
+• Título: "ANTES: [CRENÇA ERRADA] → DEPOIS: [REALIDADE LEGAL]"
+  Ex: "ANTES: [ACEITAVA PRESSÃO PRA PEDIR DEMISSÃO] → DEPOIS: SOUBE QUE PODIA COBRAR RESCISÃO INDIRETA"
+• Body — ANTES (1 frase específica, não genérica): o que o trabalhador fazia/aceitava e por quê
+  DEPOIS (1-2 frases): o que ele sabe agora + ação possível
+  Ex: ANTES: "Assinava PDC sem saber que perdia 50% da multa do FGTS."
+  DEPOIS: "PDC é opcional. Só faz sentido se a empresa compensar a diferença em dinheiro."`,
+
+    direitos:`FORMATO GUIA DE DIREITOS
+Regra: Cada card = 1 direito. Mas não apenas o que é — mostrar QUANDO SE APLICA e COMO GARANTIR.
+
+Card 1 — GANCHO: O direito mais desconhecido ou mais surpreendente do tema.
+Fórmulas: "VOCÊ SABIA QUE TEM DIREITO A [RECEBER EM DOBRO] SE TRABALHAR NO FERIADO?" | "ESSE DIREITO EXISTE DESDE [1943] E POUCOS TRABALHADORES USAM"
+
+Cards 2 a ${cc} — UM DIREITO POR CARD:
+• Badge: o nome do direito em caps (ex: "HORA EXTRA", "DSR", "FGTS MULTA")
+• Título: o direito em linguagem direta com [destaque] no benefício ou no risco
+  Ex: "TRABALHOU NO SÁBADO? VOCÊ TEM DIREITO A [DSR PROPORCIONAL]"
+• Body: Como funciona na prática (não na teoria) + quando se aplica + o que fazer para garantir
+  Citar Art. CLT ou Súmula TST quando correto e relevante.
+• CTA: Ação específica relacionada ao direito do card`
+
+  }[S.fmt];
+
+  // ── REGRA DO BADGE ────────────────────────────────────────────
+  const BADGE_RULE = `BADGE (canto superior esquerdo — use o MESMO tema em todos os cards):
+• Use o tema/assunto principal do carrossel — curto, em caps, máximo 3 palavras
+• Exemplos: "JUSTA CAUSA" / "HORA EXTRA" / "FGTS" / "5° DIA ÚTIL" / "RESCISÃO"
+• O badge identifica o carrossel inteiro, não o card individual
+• NÃO use badges diferentes por card — mantém identidade visual`;
+
+  // ── REGRA DO TEXTO ────────────────────────────────────────────
+  const TEXT_RULE = S.size==="curto"
+    ? `TEXTO — FRASES CURTAS:
+Body: 1 a 2 frases de alto impacto. Máximo 22 palavras. Zero enrolação.
+O body traz a CONSEQUÊNCIA, a PROVA ou o RISCO — nunca repete o título com outras palavras.
+✅ "Isso pode te custar aviso prévio, multa do FGTS e anos de processo."
+✅ "Seu chefe sabe disso. Por isso nunca te conta."
+✅ "Na Justiça do Trabalho, isso vira prova — e você ganha."
+❌ "É importante que o trabalhador conheça seus direitos." (vago, fraco, sem ação)`
+    : `TEXTO — FRASES LONGAS:
+Body: 40 a 55 palavras. Cada frase trabalha — sem relleno.
+Estrutura: contexto (por que isso importa) → regra legal simples → consequência prática.
+Linguagem de quem explica para um familiar preocupado, não para um juiz.
+Evitar: juridiquês, voz passiva excessiva, frases sem conclusão.`;
+
+  // ── FÓRMULAS DE TÍTULO ────────────────────────────────────────
+  const TITLE_FORMULAS = `TÍTULOS QUE PARAM O SCROLL — use estas fórmulas:
+1. REVELAÇÃO: "A EMPRESA [SABE DISSO] E TORCE PRA VOCÊ NÃO DESCOBRIR"
+2. PERGUNTA-CHOQUE: "VOCÊ SABIA QUE SEU [SALÁRIO PODE VIR COM JUROS]?"
+3. CONTRADIÇÃO: "PEDIU DEMISSÃO? [PODE RECEBER TUDO] ASSIM MESMO"
+4. URGÊNCIA: "CADA DIA QUE VOCÊ ESPERA A EMPRESA [APAGA AS PROVAS]"
+5. LISTA: "${cc-1} COISAS QUE O PATRÃO [NÃO PODE FAZER] MAS FAZ TODO DIA"
+6. ALERTA: "PARE DE ASSINAR [ESSE DOCUMENTO] — ELE TE PREJUDICA"
+7. EMPODERAMENTO: "VOCÊ TEM ESSE DIREITO. [USE AGORA] ANTES QUE PRESCREVA"
+8. SURPRESA: "O FAVOR QUE NA VERDADE É [UMA ARMADILHA]"
+
+[DESTAQUE]: Entre colchetes vai a palavra que mais gera reação — medo, surpresa, alívio ou indignação. 1-4 palavras. Obrigatório em todos os títulos.`;
+
+  // ── LEGENDA ───────────────────────────────────────────────────
+  const CAPTION_RULE = `LEGENDA — ESTRUTURA EXATA (não alterar a ordem):
+
+@drpedromartins
+[GANCHO — máx 125 chars, aparece ANTES do "ver mais"]: frase que para o scroll. Use palavras que trabalhadores digitam no Google. Não pode ser genérica.
+
+[linha em branco]
+[emoji relevante] [Parágrafo 1 — 2-3 frases]: a situação real que o trabalhador vive — contexto humano
+[linha em branco]
+[emoji relevante] [Parágrafo 2 — 2-3 frases]: o que a lei diz — linguagem simples, não juridiquês
+[linha em branco]
+[emoji relevante] [Parágrafo 3 — 2-3 frases]: o que fazer agora — ação concreta e prática
+[linha em branco]
+[emoji relevante] [Parágrafo 4 — opcional, 1-2 frases]: CTA — salvar, mandar pra alguém ou entrar em contato
+[linha em branco]
+${firmName}
+WhatsApp: ${WPP}
+${SITE}
+
+Regras:
+- "Você pode" não "o trabalhador poderá"
+- NUNCA mencione datas ou valores sem certeza absoluta
+- Site SEMPRE: martinsefilho.adv.br`;
+
+  // ── PROMPT FINAL ──────────────────────────────────────────────
+  const prompt = `Você é o Dr. Pedro Martins, advogado trabalhista em Brasília/DF (OAB/DF 38.424), especialista em criar conteúdo viral no Instagram que educa trabalhadores brasileiros e gera clientes reais.
+
+Você tem:
+• Precisão técnica de quem atua há anos na Justiça do Trabalho
+• Linguagem de quem tem 700k seguidores explicando direito para leigos
+• Compromisso com a verdade jurídica — nunca inventa, nunca exagera
+
+MISSÃO: Criar carrossel sobre "${topic}" que faça o seguidor SALVAR, MANDAR PRA ALGUÉM e ENTRAR EM CONTATO.
+
+CARDS DE CONTEÚDO: ${cc}
+ESCRITÓRIO: ${firmName}
+DATA ATUAL: ${dataHoje}
+${dateCtx}
+
+${BLUEPRINT}
+
+${VOZ}
+
+${TEXT_RULE}
+
+${TITLE_FORMULAS}
+
+${BADGE_RULE}
+
+${CAPTION_RULE}
+
+RETORNE APENAS JSON VÁLIDO — sem markdown, sem texto antes ou depois:
+{"cards":[{"badge":"TEMA DO CARROSSEL","title":"TITULO COM [DESTAQUE]","body":"corpo","cta":"CTA direto e curto"}],"caption":"legenda completa","hashtags":"5 hashtags"}
+
+HASHTAGS: 2 amplas (#direitotrabalhista #CLT) + 2 específicas do tema + 1 de localização ou tendência (#trabalhadorbrasileiro ou tema atual).
+
+Ordem dos cards: Card 1 = gancho que para o scroll | Cards do meio = conteúdo que educa e retém | Último card de conteúdo = CTA forte para contratar.`;
 
   try {
     document.getElementById("loadMsg").textContent="Gerando seus cards…";
@@ -468,15 +621,19 @@ O assunto envolve datas, prazos ou feriados. Voce DEVE:
       body:JSON.stringify({
         model:"claude-sonnet-4-6",
         max_tokens:4000,
-        system:`Voce e um advogado trabalhista senior e especialista em marketing juridico brasileiro.
-Data atual: ${dataHoje}
-Regras absolutas:
-1. Retorne APENAS JSON puro valido. Sem markdown. Sem texto. Comece com { termine com }
-2. NUNCA invente datas, feriados ou valores — calcule corretamente ou indique incerteza
-3. Para dias uteis: sabado CONTA, domingo e feriados NAO contam (CLT + CMN)
-4. Junho 2026: comeca segunda dia 1, Corpus Christi 04/06 (quinta). 5° dia util = sabado 06/06/2026
-5. O site do escritorio e SEMPRE: martinsefilho.adv.br (nunca martiensefilho)
-6. Textos em portugues brasileiro correto, sem juridiques`,
+        system:`Você é um especialista em direito do trabalho brasileiro e marketing jurídico no Instagram.
+
+REGRAS ABSOLUTAS — nunca violar:
+1. Retorne APENAS JSON puro válido. Sem markdown. Sem texto. Comece com { termine com }
+2. NUNCA invente datas, feriados, artigos ou valores — use dados corretos ou indique incerteza
+3. Dias úteis para salário: sábado CONTA (CLT Art.459 + CMN), domingo e feriados NÃO contam
+4. Junho 2026: começa 2ª dia 1; Corpus Christi 04/06 (5ª) = feriado; 5° dia útil = sábado 06/06/2026
+5. Site do escritório: SEMPRE martinsefilho.adv.br — nunca errar a grafia
+6. Português brasileiro correto, sem juridiquês, sem rodeios
+7. Cada card deve entregar valor real — informação que o trabalhador pode usar
+8. Títulos em maiúsculas, com [colchetes] na palavra de maior impacto emocional
+9. Badge igual em todos os cards — identifica o tema do carrossel, não o card
+10. Texto do body: nunca resumir o título — trazer prova, consequência ou risco`,
         messages:[{role:"user",content:prompt}]
       })
     });
