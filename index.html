@@ -509,7 +509,7 @@ Nunca agressivo — revelador. A raiva do leitor deve vir dos fatos, não do tom
   const BLUEPRINT = {
 
     educativo:`FORMATO EDUCATIVO — narrativa do problema à solução:
-Card 1 GANCHO: Situação que o trabalhador reconhece. Faz pensar "isso é comigo".
+Card 1 GANCHO: Título grande e impactante que gera curiosidade e força o swipe. SEM CORPO DE TEXTO — body deve ser string vazia "". O título sozinho deve fazer a pessoa querer ver o próximo card.
 Fórmulas de título: "TRABALHA 3X POR SEMANA? VOCÊ É [EMPREGADA DOMÉSTICA]" / "SEU CHEFE TE CHAMA NO FORA DO HORÁRIO? [VOCÊ PODE COBRAR]"
 Cards 2 a ${cc-1}: 1 conceito ou 1 passo por card. Do mais simples ao mais acionável. Cada card entrega algo que o trabalhador pode usar — não só entender.
 Card ${cc}: Ação concreta para HOJE. Específica ("Guarde as conversas do WhatsApp") não genérica ("Conheça seus direitos").`,
@@ -658,7 +658,7 @@ RETORNE APENAS JSON VÁLIDO — sem markdown, sem texto fora do JSON:
 {"cards":[{"badge":"TEMA CARROSSEL","title":"TITULO COM [DESTAQUE]","body":"corpo","cta":"CTA do card"}],"caption":"legenda completa conforme estrutura","hashtags":"5 hashtags"}
 
 HASHTAGS: 2 amplas (#direitotrabalhista #CLT) + 2 específicas do assunto + 1 de tendência ou localização.
-Card 1 = gancho | Cards do meio = conteúdo que educa | Último card de conteúdo = CTA forte.`;
+Card 1 = gancho PURO — body DEVE ser string vazia "", título grande e impactante é suficiente | Cards do meio = conteúdo que educa | Último card de conteúdo = CTA forte.`;
 
 
   try {
@@ -745,13 +745,12 @@ function renderResults(topic){
         </div>
         <button class="btn-dl" id="dl-${i}" onclick="dlCard(${i})">⬇ Baixar PNG</button>`;
     } else {
-      const badge=(card.badge||topic).toUpperCase().slice(0,18);
-      const bodyH=isBlur?`<div class="pc-blur">🔒 Salve para ver</div>`:isTap?`<div class="pc-blur" style="background:#1a2a4a">👆 Dois toques</div>`:`<div class="pc-body">${card.body||""}</div>`;
+      const isGancho=(i===0&&!card._type); const bodyH=isBlur?`<div class="pc-blur">🔒 Salve para ver</div>`:isTap?`<div class="pc-blur" style="background:#1a2a4a">👆 Dois toques</div>`:isGancho?``:`<div class="pc-body">${card.body||""}</div>`;
       slot.innerHTML=`
         <div class="slot-head"><div class="slot-num">${i+1}</div><span class="slot-lbl">${lbl}</span></div>
         <div class="prev-card" onclick="dlCard(${i})">
           <div class="pc-bar"></div>
-          <div class="pc-tl"><div class="pc-topic">${badge}</div><div class="pc-counter">${i+1}/${S.cards.length}</div></div>
+          <div class="pc-tl"><div class="pc-counter" style="font-size:7px;font-weight:700;color:#1a2a4a">${i+1}/${S.cards.length}</div></div>
           <div class="pc-tr"><img class="pc-logo-h" src="${LOGO_H}"></div>
           <div class="pc-div"></div>
           <div class="pc-mid"><div class="pc-title">${titleH}</div>${bodyH}</div>
@@ -805,10 +804,8 @@ async function renderCanvas(card,idx,total,topic,isBlurred){
     const chips=["❤️ CURTIR","🔖 SALVAR","📤 ENVIAR"]; ctx.font="700 22px Inter,sans-serif"; let cx=W-80;
     [...chips].reverse().forEach(ch=>{ const tw=ctx.measureText(ch).width+44; cx-=tw; rrect(ctx,cx,W-100,tw,52,26); ctx.strokeStyle="#c0392b";ctx.lineWidth=2;ctx.stroke(); ctx.fillStyle="#c0392b";ctx.fillText(ch,cx+22,W-67); cx-=12; });
   } else {
-    // TOP
-    const badge=(card.badge||topic).toUpperCase().slice(0,22);
-    ctx.font="700 24px Inter,sans-serif";ctx.fillStyle="#1a2a4a";ctx.fillText(badge,64,66);
-    ctx.font="400 20px Inter,sans-serif";ctx.fillStyle="#bbb";ctx.fillText(idx+1+"/"+total,64,96);
+    // TOP — counter only (no badge, no firm name)
+    ctx.font="700 26px Inter,sans-serif";ctx.fillStyle="#1a2a4a";ctx.fillText(idx+1+"/"+total,64,72);
     const lH=await loadImg(LOGO_H);
     if(lH){ const lh=52,lw=lH.width*(lh/lH.height); ctx.drawImage(lH,W-64-lw,34,lw,lh); }
     ctx.strokeStyle="#e5e5e5";ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(64,120);ctx.lineTo(W-64,120);ctx.stroke();
@@ -835,7 +832,7 @@ async function renderCanvas(card,idx,total,topic,isBlurred){
 
       const tlineH=88, numTL=Math.min(tlines.length,5);
       const bFont=S.size==="curto"?"700 46px Inter,sans-serif":"400 34px Inter,sans-serif";
-      const bLines=isBlurred?[]:wt(ctx,card.body||"",maxTW,bFont);
+      const isGanchoCard=(idx===0); const bLines=(isBlurred||isGanchoCard)?[]:wt(ctx,card.body||"",maxTW,bFont);
       const numBL=Math.min(bLines.length,5), bLineH=S.size==="curto"?64:50;
       const gap=isBlurred?60:(numBL>0?44:0);
       const totalH=numTL*tlineH+gap+numBL*bLineH;
