@@ -1,1 +1,20 @@
-const express=require("express"),path=require("path"),app=express();app.use(express.json({limit:"2mb"}));app.get("/",(req,res)=>{res.sendFile(path.join(__dirname,"index.html"))});app.post("/api/generate",async(req,res)=>{const k=process.env.ANTHROPIC_API_KEY;if(!k)return res.status(500).json({error:"API key missing"});try{const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":k,"anthropic-version":"2023-06-01"},body:JSON.stringify(req.body)});const d=await r.json();res.status(r.status).json(d)}catch(e){res.status(500).json({error:e.message})}});app.listen(process.env.PORT||3000,()=>console.log("LexPost ready"));
+const express = require("express");
+const path = require("path");
+const app = express();
+app.use(express.json({ limit: "2mb" }));
+app.get("/", (req, res) => { res.sendFile(path.join(__dirname, "index.html")); });
+app.post("/api/generate", async (req, res) => {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY not configured." });
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify(req.body),
+    });
+    const data = await response.json();
+    res.status(response.status).json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("LexPost on port " + PORT));
