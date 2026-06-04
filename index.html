@@ -615,6 +615,12 @@ const S = { fmt:"educativo", size:"curto", cardCount:5, tone:"educativo", mode:"
 window.addEventListener("DOMContentLoaded", () => {
   _initAssets();
   checkAuth();
+  // Pre-load images into cache so downloads work instantly
+  setTimeout(function(){
+    if(typeof loadImg !== "undefined" && typeof PEDRO !== "undefined") {
+      loadImg(PEDRO); loadImg(LOGO_V); loadImg(LOGO_H); loadImg(SYMBOL);
+    }
+  }, 500);
   setTimeout(() => document.getElementById("splash").classList.add("hide"), 1900);
   setupChips("fmtChips",  v => S.fmt = v);
   setupChips("sizeChips", v => S.size = v);
@@ -1148,7 +1154,20 @@ function renderResults(topic){
 // ── CANVAS 1080×1080 ──────────────────────────────────────────────
 function wt(ctx,text,maxW,font){ctx.font=font;const ws=(text||"").split(" ");const ls=[];let l="";ws.forEach(w=>{const t=l?l+" "+w:w;if(ctx.measureText(t).width>maxW&&l){ls.push(l);l=w;}else l=t;});if(l)ls.push(l);return ls;}
 function rrect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();}
-function loadImg(src){return new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src;});}
+function loadImg(src){
+  if(!src) return Promise.resolve(null);
+  if(loadImg._cache && loadImg._cache[src]) return Promise.resolve(loadImg._cache[src]);
+  return new Promise(r=>{
+    const i=new Image();
+    i.onload=()=>{
+      if(!loadImg._cache) loadImg._cache={};
+      loadImg._cache[src]=i;
+      r(i);
+    };
+    i.onerror=()=>r(null);
+    i.src=src;
+  });
+}
 
 async function renderCanvas(card,idx,total,topic,isBlurred,palName){
   const W=1080,C=document.createElement("canvas");C.width=W;C.height=W;
@@ -1283,7 +1302,7 @@ async function dlCard(i){
     URL.revokeObjectURL(url);
     btn.classList.add("done");btn.textContent="✓ Salvo!";
     setTimeout(()=>{btn.classList.remove("done");btn.textContent="⬇ Baixar";btn.disabled=false;},2500);
-  }catch(e){btn.textContent="⬇ Baixar";btn.disabled=false;console.error(e);}
+  }catch(e){btn.textContent="❌ Erro: "+e.message.slice(0,30);btn.disabled=false;console.error("dlCard "+i+":",e);}
 }
 
 async function dlAll(){
@@ -1296,11 +1315,9 @@ async function dlAll(){
       const ib=S.blur&&!S.cards[i]._type&&i>0&&i<S.cards.length-(S.contact?2:1);
       const blob=await renderCanvas(S.cards[i],i,S.cards.length,topic,ib,S.palette);
       const url=URL.createObjectURL(blob);
-      const a=document.createElement("a");a.href=url;a.download=slug+"-card-"+(i+1)+".png";
-      await new Promise(r=>setTimeout(r,100));
-      a.click();
-      await new Promise(r=>setTimeout(r,500));
+      const a=document.createElement("a");a.href=url;a.download=slug+"-card-"+(i+1)+".png";a.click();
       URL.revokeObjectURL(url);
+      await new Promise(r=>setTimeout(r,380));
     }catch(_){}
   }
   btn.disabled=false;btn.textContent="⬇ Baixar todos os "+S.cards.length+" cards";
