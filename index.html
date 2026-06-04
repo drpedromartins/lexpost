@@ -1214,6 +1214,8 @@ async function renderCanvas(card,idx,total,topic,isBlurred,palName){
       ctx.textAlign="left";
     } else {
       // TITLE, two-color, centered
+
+      const isOddCard = (idx % 2 === 0); // odd positions (1st,3rd,5th card)
       const isQcard=(S.size==="curto"&&isOddCard&&!isGanchoCard);
       const isAcard=(S.size==="curto"&&!isOddCard);
       const tfPx=isQcard?"900 86px":isAcard?"900 64px":"900 72px";
@@ -1234,7 +1236,6 @@ async function renderCanvas(card,idx,total,topic,isBlurred,palName){
       const isGanchoCard=(idx===0);
       // PERGUNTA/RESPOSTA: odd cards = big question (no body), even cards = answer (with body)
       // FRASES LONGAS: all cards have body
-      const isOddCard = (idx % 2 === 0); // 0-indexed: 0,2,4 are odd positions (cards 1,3,5)
       const skipBody = isBlurred || isGanchoCard || (S.size==="curto" && isOddCard);
       const bLines = skipBody ? [] : wt(ctx,card.body||"",maxTW,bFont);
       const numBL=Math.min(bLines.length,5), bLineH=S.size==="curto"?64:50;
