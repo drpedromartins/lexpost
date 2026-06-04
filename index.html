@@ -144,7 +144,6 @@ main{max-width:700px;margin:0 auto;padding:26px 16px 100px}
 .btn-dl.done{color:#22c55e;border-color:rgba(34,197,94,.28)}
 .btn-all{width:100%;background:linear-gradient(135deg,var(--gold2),#5a4a20);border:none;border-radius:var(--r);padding:14px;font-family:"Inter",sans-serif;font-size:15px;font-weight:700;color:#fff;cursor:pointer}
 .btn-all:disabled{background:rgba(138,115,64,.28);cursor:not-allowed}
-.btn-pdf:disabled{background:rgba(192,57,43,.28)!important;cursor:not-allowed}
 
 .cap-lbl{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--gold2);margin-bottom:5px}
 .cap-note{font-size:10px;color:var(--muted);margin-bottom:13px}
@@ -295,21 +294,7 @@ main{max-width:700px;margin:0 auto;padding:26px 16px 100px}
 .url-status.loading{display:block;color:var(--muted);background:rgba(255,255,255,.03)}
 .url-status.ok{display:block;color:#22c55e;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.15)}
 .url-status.err{display:block;color:#f87171;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15)}
-.edit-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;display:none;align-items:center;justify-content:center}
-.edit-modal.show{display:flex}
-.edit-modal-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:24px;width:min(480px,92vw);max-height:90vh;overflow-y:auto}
-.edit-modal-title{font-size:14px;font-weight:700;color:var(--gold2);margin-bottom:16px;letter-spacing:.05em}
-.edit-field-label{font-size:11px;color:var(--muted);margin-bottom:4px;display:block}
-.edit-field{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--cream);font-size:13px;font-family:"Inter",sans-serif;resize:none;margin-bottom:12px;box-sizing:border-box;outline:none}
-.edit-field:focus{border-color:var(--gold2)}
-.edit-actions{display:flex;gap:8px;margin-top:4px}
-.edit-save-btn{flex:1;background:linear-gradient(135deg,var(--gold2),#5a4a20);border:none;border-radius:10px;padding:10px;font-family:"Inter",sans-serif;font-size:13px;font-weight:700;color:#fff;cursor:pointer}
-.edit-cancel-btn{flex:1;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:10px;padding:10px;font-family:"Inter",sans-serif;font-size:13px;color:var(--muted);cursor:pointer}
-.btn-edit{width:100%;margin-top:4px;background:rgba(138,115,64,.12);border:1px solid rgba(138,115,64,.25);border-radius:8px;padding:5px;font-size:10px;color:var(--gold2);cursor:pointer;font-family:"Inter",sans-serif;text-align:center;transition:all .2s}
-.btn-edit:hover{background:rgba(138,115,64,.22)}
 </style>
-<!-- jsPDF para exportação em PDF -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <!-- HIDDEN ASSETS -->
@@ -528,7 +513,6 @@ main{max-width:700px;margin:0 auto;padding:26px 16px 100px}
       </div>
       <div class="strip" id="strip"></div>
       <button class="btn-all" id="btnAll" onclick="dlAll()">⬇ Baixar todos os cards</button>
-      <button class="btn-all btn-pdf" id="btnPdf" onclick="dlPDF()" style="margin-top:10px;background:linear-gradient(135deg,#c0392b,#922b21)">⬇ Salvar como PDF (todos os cards)</button>
     </div>
     <div class="panel">
       <div class="cap-lbl">📝 Legenda para o Instagram</div>
@@ -631,6 +615,12 @@ const S = { fmt:"educativo", size:"curto", cardCount:5, tone:"educativo", mode:"
 window.addEventListener("DOMContentLoaded", () => {
   _initAssets();
   checkAuth();
+  // Pre-load images into cache so downloads work instantly
+  setTimeout(function(){
+    if(typeof loadImg !== "undefined" && typeof PEDRO !== "undefined") {
+      loadImg(PEDRO); loadImg(LOGO_V); loadImg(LOGO_H); loadImg(SYMBOL);
+    }
+  }, 500);
   setTimeout(() => document.getElementById("splash").classList.add("hide"), 1900);
   setupChips("fmtChips",  v => S.fmt = v);
   setupChips("sizeChips", v => S.size = v);
@@ -668,8 +658,7 @@ const TMAP = {
 function tog(k){ S[k]=!S[k]; const m=TMAP[k],btn=document.getElementById(m.btn),note=document.getElementById(m.note); btn.classList.toggle("on",S[k]); btn.textContent=S[k]?m.on:m.off; note.classList.toggle("show",S[k]); }
 
 // ── GENERATE ─────────────────────────────────────────────────────
-async function generate(_retryCount) {
-  _retryCount = _retryCount || 0;
+async function generate() {
   const topic    = document.getElementById("topic").value.trim();
   const firmName = "Martins & Filho Advogados";
   if (!topic) { showErr("⚠ Digite o assunto do carrossel."); return; }
@@ -1079,63 +1068,9 @@ NUNCA: juridiquês, artigos em excesso, linguagem acadêmica, parágrafos longos
     if(S.tap) all.splice(Math.max(1,Math.floor(all.length/2)),0,{_type:"tap",badge:"ENGAJAMENTO",title:"Dê [dois toques] na tela",body:"para continuar recebendo conteúdos gratuitos",cta:"Dois toques"});
     if(S.contact) all.push({_type:"contact"});
 
-    // ── DUPLA VALIDAÇÃO ──────────────────────────────────────────
-    document.getElementById("loadMsg").textContent="Verificando qualidade e precisão…";
-    document.getElementById("loadSub").textContent="Segunda verificação: precisão jurídica, linguagem e coerência";
-    try {
-      const validResp = await fetch("/api/generate",{
-        method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-6",
-          max_tokens:4000,
-          system:"Você é um revisor editorial especializado em conteúdo jurídico trabalhista para Instagram. Revise o carrossel e corrija apenas o que estiver errado. Retorne APENAS JSON válido no mesmo formato, sem markdown, sem texto fora do JSON.",
-          messages:[{role:"user",content:`Revise este carrossel jurídico e corrija apenas erros reais:
-
-CRITÉRIOS:
-1. PRECISÃO JURÍDICA: Remova ou corrija qualquer artigo, prazo, valor ou data inventado ou incerto.
-2. LINGUAGEM: Imperativo correto ("Mande", não "manda"). Sem juridiquês. Frases curtas.
-3. COERÊNCIA: Cada card tem UMA ideia. Body não repete o título.
-4. IDENTIDADE: Site sempre "martinsefilho.adv.br". Badge igual em todos os cards.
-5. IMPACTO: Título tem [colchetes] na palavra de maior impacto.
-
-CARROSSEL:
-${JSON.stringify({cards:all,caption:parsed.caption,hashtags:parsed.hashtags})}
-
-Retorne o JSON corrigido no mesmo formato: {"cards":[...],"caption":"...","hashtags":"..."}
-Se estiver correto, retorne o mesmo JSON. NUNCA invente conteúdo novo.`}]
-        })
-      });
-      if(validResp.ok){
-        const validData = await validResp.json();
-        const validRaw=(validData.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("").trim();
-        if(validRaw){
-          const validParsed=extractJSON(validRaw);
-          if(validParsed?.cards?.length){
-            let validAll=validParsed.cards.slice(0,cc);
-            if(S.tap) validAll.splice(Math.max(1,Math.floor(validAll.length/2)),0,{_type:"tap",badge:"ENGAJAMENTO",title:"Dê [dois toques] na tela",body:"para continuar recebendo conteúdos gratuitos",cta:"Dois toques"});
-            if(S.contact) validAll.push({_type:"contact"});
-            all=validAll;
-            if(validParsed.caption) parsed.caption=validParsed.caption;
-            if(validParsed.hashtags) parsed.hashtags=validParsed.hashtags;
-          }
-        }
-      }
-    } catch(validErr){ console.warn("Validação secundária falhou (usando resultado original):", validErr); }
-    // ── FIM DA DUPLA VALIDAÇÃO ────────────────────────────────────
     S.cards=all; S.caption=parsed.caption||""; S.hashtags=parsed.hashtags||"";
     renderResults(topic);
-  } catch(e){
-    if(_retryCount < 2){
-      console.warn(`Tentativa ${_retryCount+1} falhou, tentando novamente...`, e.message);
-      document.getElementById("loadMsg").textContent=`Tentando novamente (${_retryCount+1}/2)…`;
-      document.getElementById("loadSub").textContent="Aguarde, reconectando com a IA";
-      await new Promise(r=>setTimeout(r,1500));
-      document.getElementById("loading").style.display="none";
-      document.getElementById("genBtn").disabled=false;
-      return generate(_retryCount+1);
-    }
-    showErr("❌ "+e.message); console.error(e);
-  }
+  } catch(e){ showErr("❌ "+e.message); console.error(e); }
   finally{ document.getElementById("loading").style.display="none"; document.getElementById("genBtn").disabled=false; }
 }
 
@@ -1143,7 +1078,6 @@ Se estiver correto, retorne o mesmo JSON. NUNCA invente conteúdo novo.`}]
 function renderResults(topic){
   // Save to history
   saveHistory(topic, S.fmt, S.tone);
-  saveThemeToHistory(topic);
   // Show regen button
   document.getElementById("regenBtn").style.display="block";
 
@@ -1191,18 +1125,13 @@ function renderResults(topic){
           <div class="pc-bl"><img class="pc-pedro" src="${PEDRO}"></div>
           <div class="pc-br"><div class="pc-cta">${(card.cta||"Saiba mais").toUpperCase()} →</div></div>
         </div>
-        <button class="btn-dl" id="dl-${i}">⬇ Baixar</button>
-        <button class="btn-edit" id="edit-${i}">✏️ Editar card</button>`;
+        <button class="btn-dl" id="dl-${i}">⬇ Baixar</button>`;
     }
     strip.appendChild(slot);
     // Attach download listener AFTER innerHTML is set (avoids onclick corruption from large base64)
     const dlBtn = slot.querySelector(".btn-dl");
     if(dlBtn) {
       (function(idx){ dlBtn.addEventListener("click", function(){ dlCard(idx); }); })(i);
-    }
-    const editBtn = slot.querySelector(".btn-edit");
-    if(editBtn) {
-      (function(idx){ editBtn.addEventListener("click", function(e){ e.stopPropagation(); openEditModal(idx); }); })(i);
     }
     const previewEl = slot.querySelector(".prev-card, .prev-last");
     if(previewEl) {
@@ -1225,7 +1154,20 @@ function renderResults(topic){
 // ── CANVAS 1080×1080 ──────────────────────────────────────────────
 function wt(ctx,text,maxW,font){ctx.font=font;const ws=(text||"").split(" ");const ls=[];let l="";ws.forEach(w=>{const t=l?l+" "+w:w;if(ctx.measureText(t).width>maxW&&l){ls.push(l);l=w;}else l=t;});if(l)ls.push(l);return ls;}
 function rrect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();}
-function loadImg(src){return new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src;});}
+function loadImg(src){
+  if(!src) return Promise.resolve(null);
+  if(loadImg._cache && loadImg._cache[src]) return Promise.resolve(loadImg._cache[src]);
+  return new Promise(r=>{
+    const i=new Image();
+    i.onload=()=>{
+      if(!loadImg._cache) loadImg._cache={};
+      loadImg._cache[src]=i;
+      r(i);
+    };
+    i.onerror=()=>r(null);
+    i.src=src;
+  });
+}
 
 async function renderCanvas(card,idx,total,topic,isBlurred,palName){
   const W=1080,C=document.createElement("canvas");C.width=W;C.height=W;
@@ -1272,6 +1214,9 @@ async function renderCanvas(card,idx,total,topic,isBlurred,palName){
       ctx.textAlign="left";
     } else {
       // TITLE, two-color, centered
+
+      const isGanchoCard=(idx===0);
+      const isOddCard = (idx % 2 === 0); // odd positions (1st,3rd,5th card)
       const isQcard=(S.size==="curto"&&isOddCard&&!isGanchoCard);
       const isAcard=(S.size==="curto"&&!isOddCard);
       const tfPx=isQcard?"900 86px":isAcard?"900 64px":"900 72px";
@@ -1289,10 +1234,8 @@ async function renderCanvas(card,idx,total,topic,isBlurred,palName){
 
       const tlineH = isQcard ? 104 : isAcard ? 76 : 88, numTL=Math.min(tlines.length,5);
       const bFont=S.size==="curto"?"700 46px Inter,sans-serif":"400 34px Inter,sans-serif";
-      const isGanchoCard=(idx===0);
       // PERGUNTA/RESPOSTA: odd cards = big question (no body), even cards = answer (with body)
       // FRASES LONGAS: all cards have body
-      const isOddCard = (idx % 2 === 0); // 0-indexed: 0,2,4 are odd positions (cards 1,3,5)
       const skipBody = isBlurred || isGanchoCard || (S.size==="curto" && isOddCard);
       const bLines = skipBody ? [] : wt(ctx,card.body||"",maxTW,bFont);
       const numBL=Math.min(bLines.length,5), bLineH=S.size==="curto"?64:50;
@@ -1345,14 +1288,8 @@ async function renderCanvas(card,idx,total,topic,isBlurred,palName){
   return new Promise(r=>C.toBlob(b=>r(b),"image/png"));
 }
 
-// Download — helper robusto (adiciona ao DOM antes de clicar, revoga com delay)
-function _triggerDownload(url, filename){
-  const a=document.createElement("a");
-  a.href=url; a.download=filename; a.style.display="none";
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(url); if(a.parentNode) document.body.removeChild(a); },2000);
-}
+// Download — iOS-aware
+var _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 async function dlCard(i){
   const card=S.cards[i]; if(!card)return;
   const btn=document.getElementById("dl-"+i);
@@ -1362,11 +1299,13 @@ async function dlCard(i){
     const ib=S.blur&&!card._type&&i>0&&i<S.cards.length-(S.contact?2:1);
     const blob=await renderCanvas(card,i,S.cards.length,topic,ib,S.palette);
     const url=URL.createObjectURL(blob);
-    _triggerDownload(url,"card-"+(i+1)+".png");
+    const a=document.createElement("a");a.href=url;a.download="card-"+(i+1)+".png";a.click();
+    URL.revokeObjectURL(url);
     btn.classList.add("done");btn.textContent="✓ Salvo!";
     setTimeout(()=>{btn.classList.remove("done");btn.textContent="⬇ Baixar";btn.disabled=false;},2500);
-  }catch(e){btn.textContent="⬇ Baixar";btn.disabled=false;console.error(e);}
+  }catch(e){btn.textContent="❌ Erro: "+e.message.slice(0,30);btn.disabled=false;console.error("dlCard "+i+":",e);}
 }
+
 async function dlAll(){
   const btn=document.getElementById("btnAll"); btn.disabled=true;
   const topic=document.getElementById("topic").value.trim()||"cards";
@@ -1377,37 +1316,12 @@ async function dlAll(){
       const ib=S.blur&&!S.cards[i]._type&&i>0&&i<S.cards.length-(S.contact?2:1);
       const blob=await renderCanvas(S.cards[i],i,S.cards.length,topic,ib,S.palette);
       const url=URL.createObjectURL(blob);
-      _triggerDownload(url,slug+"-card-"+(i+1)+".png");
-      await new Promise(r=>setTimeout(r,800));
+      const a=document.createElement("a");a.href=url;a.download=slug+"-card-"+(i+1)+".png";a.click();
+      URL.revokeObjectURL(url);
+      await new Promise(r=>setTimeout(r,380));
     }catch(_){}
   }
   btn.disabled=false;btn.textContent="⬇ Baixar todos os "+S.cards.length+" cards";
-}
-async function dlPDF(){
-  const btn=document.getElementById("btnPdf"); btn.disabled=true;
-  const topic=document.getElementById("topic").value.trim()||"carrossel";
-  const slug=topic.replace(/\s+/g,"-").toLowerCase().slice(0,24);
-  btn.textContent="⏳ Gerando PDF…";
-  try{
-    const W_MM=1080*0.2646;
-    const {jsPDF}=window.jspdf||{};
-    if(!jsPDF){alert("Biblioteca PDF não carregada. Recarregue a página.");btn.disabled=false;btn.textContent="⬇ Salvar como PDF";return;}
-    const pdf=new jsPDF({orientation:"portrait",unit:"mm",format:[W_MM,W_MM]});
-    for(let i=0;i<S.cards.length;i++){
-      btn.textContent="⏳ PDF "+(i+1)+"/"+S.cards.length+"…";
-      const ib=S.blur&&!S.cards[i]._type&&i>0&&i<S.cards.length-(S.contact?2:1);
-      const blob=await renderCanvas(S.cards[i],i,S.cards.length,topic,ib,S.palette);
-      const dataUrl=await new Promise(res=>{const fr=new FileReader();fr.onload=e=>res(e.target.result);fr.readAsDataURL(blob);});
-      if(i>0)pdf.addPage();
-      pdf.addImage(dataUrl,"PNG",0,0,W_MM,W_MM);
-    }
-    pdf.save(slug+"-carrossel.pdf");
-    btn.textContent="✓ PDF Salvo!";
-    setTimeout(()=>{btn.disabled=false;btn.textContent="⬇ Salvar como PDF";},3000);
-  }catch(e){
-    console.error(e);btn.textContent="⬇ Salvar como PDF";btn.disabled=false;
-    alert("Erro ao gerar PDF: "+e.message);
-  }
 }
 
 
@@ -1540,81 +1454,16 @@ async function loadTemas() {
     btn.disabled = false; btn.textContent = "Atualizar Temas em Alta";
   }
 }
-// ── HISTÓRICO DE TEMAS USADOS ──────────────────────────────────────────
-function saveThemeToHistory(tema) {
-  var hist = JSON.parse(localStorage.getItem("lexpost_themes_hist")||"[]");
-  hist = hist.filter(function(t){ return t !== tema; });
-  hist.unshift(tema);
-  if(hist.length > 10) hist = hist.slice(0,10);
-  localStorage.setItem("lexpost_themes_hist", JSON.stringify(hist));
-}
-function getSeasonalThemes() {
-  var m = new Date().getMonth(); // 0=jan
-  var seasonal = {
-    0: ["13º salário atrasado","Férias coletivas janeiro","Rescisão virada de ano"],
-    1: ["Horas extras Carnaval","Feriado e pagamento","Banco de horas"],
-    2: ["Dia da Mulher trabalhadora","Assedio moral no trabalho","Igualdade salarial"],
-    3: ["Semana Santa e feriados","Acidente de trabalho","Insalubridade"],
-    4: ["Dia do Trabalhador","FGTS e direitos CLT","Trabalho sem carteira"],
-    5: ["Corpus Christi e horas extras","5º dia útil junho","Férias de julho"],
-    6: ["Férias escolares e trabalho","Banco de horas julho","Rescisão indireta"],
-    7: ["Volta às aulas e direitos","Horas extras agosto","Justa causa sem motivo"],
-    8: ["Dia do Advogado","Prescrição trabalhista","Verbas rescisórias"],
-    9: ["Outubro Rosa e direitos","Afastamento por doença","Auxílio-doença INSS"],
-    10: ["Black Friday e horas extras","Trabalho no feriado","Hora extra dobrada"],
-    11: ["13º salário dezembro","Férias fim de ano","Rescisão dezembro"]
-  };
-  return seasonal[m] || [];
-}
 function loadSugestoes() {
   var btn = document.getElementById("btnSugestoes");
   var res = document.getElementById("sugestoesResult");
   if(btn) btn.style.display = "none";
-  var container = document.createElement("div");
-  // ── SEÇÃO 1: TEMAS RECENTES (histórico local)
-  var hist = JSON.parse(localStorage.getItem("lexpost_themes_hist")||"[]");
-  if(hist.length > 0) {
-    var histDiv = document.createElement("div"); histDiv.className = "sug-cat";
-    var histTitle = document.createElement("div"); histTitle.className = "sug-cat-title";
-    histTitle.textContent = "🕒 Seus temas recentes";
-    histDiv.appendChild(histTitle);
-    var histChips = document.createElement("div"); histChips.className = "sug-chips";
-    hist.forEach(function(t) {
-      var btn2 = document.createElement("button"); btn2.className = "sug-chip";
-      btn2.textContent = "↺ " + t;
-      btn2.style.borderColor = "rgba(138,115,64,.4)";
-      btn2.addEventListener("click", (function(tema){ return function(){ usarTema(tema); }; })(t));
-      histChips.appendChild(btn2);
-    });
-    histDiv.appendChild(histChips);
-    container.appendChild(histDiv);
-  }
-  // ── SEÇÃO 2: TEMAS SAZONAIS DO MÊS
-  var seasonal = getSeasonalThemes();
-  if(seasonal.length > 0) {
-    var seasDiv = document.createElement("div"); seasDiv.className = "sug-cat";
-    var seasTitle = document.createElement("div"); seasTitle.className = "sug-cat-title";
-    var meses=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-    seasTitle.textContent = "📅 Relevantes em " + meses[new Date().getMonth()];
-    seasDiv.appendChild(seasTitle);
-    var seasChips = document.createElement("div"); seasChips.className = "sug-chips";
-    seasonal.forEach(function(t) {
-      var btn2 = document.createElement("button"); btn2.className = "sug-chip";
-      btn2.textContent = "⚡ " + t;
-      btn2.style.borderColor = "rgba(239,68,68,.35)";
-      btn2.style.color = "#fca5a5";
-      btn2.addEventListener("click", (function(tema){ return function(){ usarTema(tema); }; })(t));
-      seasChips.appendChild(btn2);
-    });
-    seasDiv.appendChild(seasChips);
-    container.appendChild(seasDiv);
-  }
-  // ── SEÇÃO 3: CATEGORIAS FIXAS
   var cats = [
     {name:"Direito do Trabalho", icon:"⚖️", temas:["FGTS nao depositado","Horas extras nao pagas","Rescisao indireta","Justa causa sem motivo","Trabalho sem carteira","Assedio moral","Direitos da gestante","Acidente de trabalho","Insalubridade","Verbas rescisorias","Diarista 3x na semana","5 dia util","Demissao por represalia","PDC o que e"]},
     {name:"Previdenciario", icon:"🏥", temas:["Aposentadoria por contribuicao","Auxilio-doenca negado","BPC LOAS","Pente-fino INSS","Beneficio negado","Burnout e afastamento","Depressao e beneficio","Incapacidade laboral","Aposentadoria especial","Revisao de beneficio"]},
     {name:"Institucional", icon:"🏛️", temas:["Bastidores de audiencia","Rotina do advogado","Como escolher advogado","O que fazemos","Nossa historia","Dia do Trabalhador","Consulta pelo WhatsApp","Por que advogado trabalhista"]}
   ];
+  var container = document.createElement("div");
   cats.forEach(function(cat) {
     var catDiv = document.createElement("div"); catDiv.className = "sug-cat";
     var title = document.createElement("div"); title.className = "sug-cat-title";
@@ -1636,7 +1485,6 @@ function loadSugestoes() {
 
 function usarTema(tema, numCards) {
   document.getElementById("topic").value = tema;
-  saveThemeToHistory(tema);
   checkDateSensitive(tema);
 
   // Auto-set card count if specified
@@ -1791,43 +1639,6 @@ function closeCapPreview() {
 }
 
 // ── COPY PER CARD ─────────────────────────────────────────────────
-// ── EDIÇÃO INLINE DE CARDS ──────────────────────────────────────────
-var _editingCardIdx = -1;
-function openEditModal(i) {
-  const card = S.cards[i]; if(!card || card._type) return;
-  _editingCardIdx = i;
-  document.getElementById("editCardNum").textContent = (i+1) + "/" + S.cards.length;
-  document.getElementById("editTitle").value = card.title || "";
-  document.getElementById("editBody").value = card.body || "";
-  document.getElementById("editCta").value = card.cta || "";
-  document.getElementById("editCardModal").classList.add("show");
-}
-function closeEditModal() {
-  document.getElementById("editCardModal").classList.remove("show");
-  _editingCardIdx = -1;
-}
-async function saveCardEdit() {
-  const i = _editingCardIdx; if(i < 0) return;
-  S.cards[i].title = document.getElementById("editTitle").value.trim() || S.cards[i].title;
-  S.cards[i].body  = document.getElementById("editBody").value.trim();
-  S.cards[i].cta   = document.getElementById("editCta").value.trim() || S.cards[i].cta;
-  closeEditModal();
-  // Re-renderizar o preview do card editado
-  const topic = document.getElementById("topic").value.trim();
-  const slot = document.getElementById("dl-"+i)?.closest(".slot");
-  if(slot) {
-    const parts=(S.cards[i].title||"").split(/(\[[^\]]+\])/);
-    const titleH=parts.map(p=>p.startsWith("[")&&p.endsWith("]")?`<em>${p.slice(1,-1)}</em>`:p).join("");
-    const pcTitle = slot.querySelector(".pc-title");
-    if(pcTitle) pcTitle.innerHTML = titleH;
-    const pcBody = slot.querySelector(".pc-body");
-    if(pcBody) pcBody.textContent = S.cards[i].body || "";
-    const pcCta = slot.querySelector(".pc-cta");
-    if(pcCta) pcCta.textContent = (S.cards[i].cta || "Saiba mais").toUpperCase() + " →";
-    const editBtn = slot.querySelector(".btn-edit");
-    if(editBtn){ editBtn.textContent="✓ Editado"; editBtn.style.color="#22c55e"; setTimeout(()=>{editBtn.textContent="✏️ Editar card";editBtn.style.color="";},2000); }
-  }
-}
 function cpCard(i) {
   const card = S.cards[i]; if(!card) return;
   const btn = document.getElementById("cpcard-"+i);
@@ -1857,21 +1668,5 @@ window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_dPr=e;setT
 window.addEventListener('appinstalled',()=>{const b=document.getElementById('btnInstall');if(b)b.style.display='none';_dPr=null;});
 function installPWA(){if(_dPr){_dPr.prompt();_dPr.userChoice.then(()=>{_dPr=null;});}else{alert('Para instalar:\n\niOS Safari: Compartilhar ↑ → "Adicionar à Tela de Início"\nAndroid Chrome: menu ⋮ → "Instalar app"');}}
 </script>
-<!-- Modal de Edição de Card -->
-<div class="edit-modal" id="editCardModal">
-  <div class="edit-modal-box">
-    <div class="edit-modal-title">✏️ Editar Card <span id="editCardNum"></span></div>
-    <label class="edit-field-label">Título (use [colchetes] na palavra de impacto)</label>
-    <textarea class="edit-field" id="editTitle" rows="3" placeholder="TÍTULO COM [DESTAQUE]"></textarea>
-    <label class="edit-field-label">Body (texto do card)</label>
-    <textarea class="edit-field" id="editBody" rows="3" placeholder="Texto do card (deixe vazio para card de gancho)"></textarea>
-    <label class="edit-field-label">CTA (botão inferior direito)</label>
-    <input class="edit-field" id="editCta" type="text" placeholder="Ex: SAIBA MAIS →">
-    <div class="edit-actions">
-      <button class="edit-save-btn" onclick="saveCardEdit()">✓ Salvar Alterações</button>
-      <button class="edit-cancel-btn" onclick="closeEditModal()">Cancelar</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
