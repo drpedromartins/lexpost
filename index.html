@@ -1296,9 +1296,11 @@ async function dlAll(){
       const ib=S.blur&&!S.cards[i]._type&&i>0&&i<S.cards.length-(S.contact?2:1);
       const blob=await renderCanvas(S.cards[i],i,S.cards.length,topic,ib,S.palette);
       const url=URL.createObjectURL(blob);
-      const a=document.createElement("a");a.href=url;a.download=slug+"-card-"+(i+1)+".png";a.click();
+      const a=document.createElement("a");a.href=url;a.download=slug+"-card-"+(i+1)+".png";
+      await new Promise(r=>setTimeout(r,100));
+      a.click();
+      await new Promise(r=>setTimeout(r,500));
       URL.revokeObjectURL(url);
-      await new Promise(r=>setTimeout(r,380));
     }catch(_){}
   }
   btn.disabled=false;btn.textContent="⬇ Baixar todos os "+S.cards.length+" cards";
