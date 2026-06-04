@@ -1104,7 +1104,7 @@ function renderResults(topic){
             <div class="pl-chips"><span class="pl-chip">❤️</span><span class="pl-chip">🔖</span><span class="pl-chip">📤</span></div>
           </div>
         </div>
-        <button class="btn-dl" id="dl-${i}">⬇ Baixar PNG</button>`;
+        <button class="btn-dl" id="dl-${i}">⬇ Baixar</button>`;
     } else {
       const isGancho=(i===0&&!card._type); const isOddPreview=(i%2===0); const skipPreviewBody=(S.size==="curto"&&isOddPreview)||isGancho; const bodyH=isBlur?`<div class="pc-blur">🔒 Salve para ver</div>`:isTap?`<div class="pc-blur" style="background:#1a2a4a">👆 Dois toques</div>`:skipPreviewBody?``:`<div class="pc-body">${card.body||""}</div>`;
       slot.innerHTML=`
@@ -1119,7 +1119,7 @@ function renderResults(topic){
           <div class="pc-bl"><img class="pc-pedro" src="${PEDRO}"></div>
           <div class="pc-br"><div class="pc-cta">${(card.cta||"Saiba mais").toUpperCase()} →</div></div>
         </div>
-        <button class="btn-dl" id="dl-${i}">⬇ Baixar PNG</button>`;
+        <button class="btn-dl" id="dl-${i}">⬇ Baixar</button>`;
     }
     strip.appendChild(slot);
     // Attach download listener AFTER innerHTML is set (avoids onclick corruption from large base64)
@@ -1264,13 +1264,8 @@ async function renderCanvas(card,idx,total,topic,isBlurred,palName){
     ctx.fillStyle=PAL.light?"rgba(26,42,74,.18)":"rgba(255,255,255,.12)";
     ctx.fillText("@drpedromartins",W-64-ctx.measureText("@drpedromartins").width,W-42);
   }
-  // Use toDataURL for cross-browser compatibility (works on mobile/Safari)
-  const dataURL = C.toDataURL("image/jpeg", 0.92);
-  const arr = dataURL.split(","); const mime = arr[0].match(/:(.*?);/)[1];
-  const bstr = atob(arr[1]); let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while(n--){ u8arr[n] = bstr.charCodeAt(n); }
-  return Promise.resolve(new Blob([u8arr], {type: mime}));
+  // Return dataURL directly — most reliable for download across all browsers
+  return Promise.resolve(C.toDataURL("image/png"));
 }
 
 // Download — iOS-aware
@@ -1278,13 +1273,12 @@ var _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 // ── DOWNLOAD — render first, then download ──────────────────────
 function triggerDownload(dataURL, filename) {
   var a = document.createElement("a");
-  a.href = dataURL;
-  a.download = filename;
-  a.style.position = "fixed";
-  a.style.left = "-9999px";
+  a.setAttribute("href", dataURL);
+  a.setAttribute("download", filename);
+  a.style.cssText = "display:none;position:fixed;top:0;left:0";
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  setTimeout(function(){ document.body.removeChild(a); }, 100);
 }
 
 async function dlCard(i){
@@ -1294,11 +1288,8 @@ async function dlCard(i){
   try {
     var topic = document.getElementById("topic").value.trim();
     var ib = S.blur && !card._type && i > 0 && i < S.cards.length-(S.contact?2:1);
-    var blob = await renderCanvas(card, i, S.cards.length, topic, ib, S.palette);
-    // Convert to dataURL synchronously, then download
-    var dataURL = URL.createObjectURL(blob);
-    triggerDownload(dataURL, "card-"+(i+1)+".jpg");
-    setTimeout(function(){ URL.revokeObjectURL(dataURL); }, 5000);
+    var dataURL = await renderCanvas(card, i, S.cards.length, topic, ib, S.palette);
+    triggerDownload(dataURL, "card-"+(i+1)+".png");
     btn.textContent = "✓ Salvo!"; btn.classList.add("done");
     setTimeout(function(){ btn.textContent = "⬇ Baixar"; btn.classList.remove("done"); btn.disabled = false; }, 2500);
   } catch(e) {
@@ -1319,8 +1310,8 @@ async function dlAll(){
     btn.textContent = "⏳ Preparando " + (i+1) + "/" + S.cards.length;
     try {
       var ib = S.blur && !S.cards[i]._type && i > 0 && i < S.cards.length-(S.contact?2:1);
-      var blob = await renderCanvas(S.cards[i], i, S.cards.length, topic, ib, S.palette);
-      blobs.push({blob: blob, name: slug+"-card-"+(i+1)+".jpg"});
+      var dataURL = await renderCanvas(S.cards[i], i, S.cards.length, topic, ib, S.palette);
+      blobs.push({dataURL: dataURL, name: slug+"-card-"+(i+1)+".png"});
     } catch(e){ console.error("Render card "+(i+1)+" error:", e); blobs.push(null); }
   }
   
@@ -1328,9 +1319,7 @@ async function dlAll(){
   btn.textContent = "⏳ Baixando…";
   for(var j = 0; j < blobs.length; j++){
     if(!blobs[j]) continue;
-    var dataURL = URL.createObjectURL(blobs[j].blob);
-    triggerDownload(dataURL, blobs[j].name);
-    setTimeout((function(u){ return function(){ URL.revokeObjectURL(u); }; })(dataURL), 5000);
+    triggerDownload(blobs[j].dataURL, blobs[j].name);
     await new Promise(function(r){ setTimeout(r, 800); });
   }
   
