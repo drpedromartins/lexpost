@@ -271,29 +271,6 @@ main{max-width:700px;margin:0 auto;padding:26px 16px 100px}
 .login-field input:focus{border-color:var(--gold2)}
 .login-btn{width:100%;margin-top:6px;background:linear-gradient(135deg,var(--gold2),#5a4a20);border:none;border-radius:10px;padding:14px;font-family:"Inter",sans-serif;font-size:15px;font-weight:700;color:#0d0d1a;cursor:pointer}
 .login-err{display:none;margin-top:10px;color:#f87171;font-size:12px}
-
-/* ── iOS GALLERY MODAL ── */
-#iosGallery{display:none;position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.95);overflow-y:auto;padding:20px 16px 40px}
-#iosGallery.show{display:block}
-.ios-gallery-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-.ios-gallery-title{color:#fff;font-family:"Inter",sans-serif;font-size:15px;font-weight:600}
-.ios-gallery-close{background:rgba(255,255,255,.1);border:none;border-radius:50%;width:32px;height:32px;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.ios-gallery-hint{background:rgba(184,160,96,.12);border:1px solid rgba(184,160,96,.25);border-radius:10px;padding:10px 14px;margin-bottom:16px;color:rgba(184,160,96,.9);font-family:"Inter",sans-serif;font-size:12px;line-height:1.5;text-align:center}
-.ios-gallery-img{width:100%;border-radius:10px;margin-bottom:12px;display:block}
-
-/* ── URL READER ── */
-.url-panel{margin-bottom:14px}
-.url-input-wrap{display:flex;gap:8px;align-items:flex-start}
-.url-input{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 14px;color:var(--cream);font-size:13px;font-family:"Inter",sans-serif;outline:none;transition:border-color .2s}
-.url-input:focus{border-color:var(--gold2)}
-.url-input::placeholder{color:var(--muted);opacity:.6}
-.btn-url{background:rgba(138,115,64,.15);border:1.5px solid rgba(138,115,64,.3);border-radius:10px;padding:12px 16px;font-family:"Inter",sans-serif;font-size:12px;font-weight:700;color:var(--gold2);cursor:pointer;white-space:nowrap;transition:all .2s;flex-shrink:0}
-.btn-url:hover{background:rgba(138,115,64,.3)}
-.btn-url:disabled{opacity:.5;cursor:not-allowed}
-.url-status{font-size:11px;margin-top:8px;padding:8px 12px;border-radius:8px;display:none}
-.url-status.loading{display:block;color:var(--muted);background:rgba(255,255,255,.03)}
-.url-status.ok{display:block;color:#22c55e;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.15)}
-.url-status.err{display:block;color:#f87171;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15)}
 </style>
 </head>
 <body>
@@ -356,18 +333,6 @@ main{max-width:700px;margin:0 auto;padding:26px 16px 100px}
       <textarea class="obs-input" id="obsInput" placeholder="Ex: mencionar consulta pelo WhatsApp · focar em diarista de condomínio · incluir multa de 40% do FGTS…"></textarea>
     </div>
   </div>
-
-  <!-- URL READER -->
-  <div class="panel url-panel">
-    <div class="panel-head">🔗 Gerar a partir de uma notícia</div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Cole o link de qualquer notícia ou artigo — o sistema lê e cria o carrossel automaticamente</div>
-    <div class="url-input-wrap">
-      <input class="url-input" id="urlInput" type="url" placeholder="https://exemplo.com/noticia-trabalhista...">
-      <button class="btn-url" id="btnUrl" onclick="readURL()">🔗 Ler</button>
-    </div>
-    <div class="url-status" id="urlStatus"></div>
-  </div>
-
   <!-- TEMAS EM ALTA -->
   <div class="panel" id="temasPanel">
     <div class="panel-head">🔥 Temas em Alta</div>
@@ -406,8 +371,8 @@ main{max-width:700px;margin:0 auto;padding:26px 16px 100px}
     <div class="field">
       <label>Tamanho do texto</label>
       <div class="chips" id="sizeChips">
-        <button class="chip on" data-val="curto">🎯 Pergunta e resposta alternados</button>
-        <button class="chip" data-val="longo">📝 Frases e explicações no mesmo card</button>
+        <button class="chip on" data-val="curto">✂️ Frases curtas, 1 ideia por card, impacto máximo</button>
+        <button class="chip" data-val="longo">📝 Frases longas, explicação completa por card</button>
       </div>
     </div>
     <div class="divider"></div>
@@ -544,16 +509,6 @@ main{max-width:700px;margin:0 auto;padding:26px 16px 100px}
     <div class="cap-preview-ig" id="capPreviewContent"></div>
     <button class="cap-close" onclick="closeCapPreview()">Fechar</button>
   </div>
-</div>
-
-<!-- iOS GALLERY MODAL -->
-<div id="iosGallery">
-  <div class="ios-gallery-head">
-    <div class="ios-gallery-title">📱 Salvar imagens</div>
-    <button class="ios-gallery-close" onclick="document.getElementById('iosGallery').classList.remove('show')">✕</button>
-  </div>
-  <div class="ios-gallery-hint">Pressione e segure cada imagem → "Salvar na Galeria"</div>
-  <div id="iosGalleryImages"></div>
 </div>
 </main>
 
@@ -881,22 +836,15 @@ Badge = tema institucional (ex: "BASTIDORES" / "EQUIPE" / "AUDIÊNCIA" / "NOSSA 
 
   // ── TAMANHO DO TEXTO ──────────────────────────────────────────
   const TAMANHO = S.size==="curto"
-    ? `PERGUNTA E RESPOSTA ALTERNADOS:
-Cards ÍMPARES (1, 3, 5, 7, 9): PERGUNTA ou CHAMADA CURIOSA
-- Título grande, maiúsculas, impactante — gera curiosidade e força deslizar
-- Body VAZIO "" — o título sozinho ocupa o card
-- Fórmulas: pergunta direta, revelação surpreendente, afirmação que choca
-- Exemplos: "VOCÊ SABIA QUE [TRABALHAR NO FERIADO] TEM UM VALOR EXATO?"
-- Exemplos: "SEU CHEFE PODE TE [DEMITIR] SEM PAGAR NADA?"
-- Exemplos: "POR QUE A EMPRESA [NUNCA TE CONTA] ISSO?"
-Cards PARES (2, 4, 6, 8, 10): RESPOSTA
-- Título menor (ainda bicolor), body com a resposta em 1-2 frases diretas
-- Responde exatamente a pergunta do card anterior
-- Linguagem simples, clara, acionável
-- Máximo 25 palavras no body
-- Exemplo: título "A RESPOSTA VAI TE [SURPREENDER]" body "Sim. Trabalhar no feriado sem compensação equivale a um dia de salário extra. A empresa deve pagar em dobro."
-IMPORTANTE: cards 1 e 2 formam um par, 3 e 4 formam um par, etc.
-O card ímpar levanta a questão. O card par resolve. O leitor precisa deslizar para descobrir.`
+    ? `FRASES CURTAS (modo minimalista):
+O body de TODOS os cards deve ser string VAZIA "". Não escreva nada no campo body.
+O título sozinho ocupa o card inteiro, em fonte grande, centralizado.
+Compense no título: ele deve ser mais completo e impactante, já que não há corpo.
+O título deve ter entre 6 e 12 palavras — suficiente para entregar a mensagem completa.
+Exemplos de título completo sem body:
+"TRABALHOU NO FERIADO? A EMPRESA DEVE TE PAGAR [EM DOBRO]"
+"DIARISTA 3X POR SEMANA? VOCÊ É [EMPREGADA DOMÉSTICA]"
+"SEU CHEFE TE HUMILHA? VOCÊ PODE [PEDIR DEMISSÃO E RECEBER TUDO]"`
     : `FRASES LONGAS (estilo educativo e completo):
 Body: MÁXIMO 35 PALAVRAS. Duas frases no máximo.
 Frase 1: contexto ou regra legal em linguagem simples.
@@ -1104,9 +1052,9 @@ function renderResults(topic){
             <div class="pl-chips"><span class="pl-chip">❤️</span><span class="pl-chip">🔖</span><span class="pl-chip">📤</span></div>
           </div>
         </div>
-        <button class="btn-dl" id="dl-${i}">⬇ Baixar</button>`;
+        <button class="btn-dl" id="dl-${i}">⬇ Baixar PNG</button>`;
     } else {
-      const isGancho=(i===0&&!card._type); const isOddPreview=(i%2===0); const skipPreviewBody=(S.size==="curto"&&isOddPreview)||isGancho; const bodyH=isBlur?`<div class="pc-blur">🔒 Salve para ver</div>`:isTap?`<div class="pc-blur" style="background:#1a2a4a">👆 Dois toques</div>`:skipPreviewBody?``:`<div class="pc-body">${card.body||""}</div>`;
+      const isGancho=(i===0&&!card._type); const isCurtoMode=(S.size==="curto"); const bodyH=isBlur?`<div class="pc-blur">🔒 Salve para ver</div>`:isTap?`<div class="pc-blur" style="background:#1a2a4a">👆 Dois toques</div>`:(isGancho||isCurtoMode)?``:`<div class="pc-body">${card.body||""}</div>`;
       slot.innerHTML=`
         <div class="slot-head"><div class="slot-num">${i+1}</div><span class="slot-lbl">${lbl}</span></div>
         <div class="prev-card" style="position:relative">
@@ -1119,7 +1067,7 @@ function renderResults(topic){
           <div class="pc-bl"><img class="pc-pedro" src="${PEDRO}"></div>
           <div class="pc-br"><div class="pc-cta">${(card.cta||"Saiba mais").toUpperCase()} →</div></div>
         </div>
-        <button class="btn-dl" id="dl-${i}">⬇ Baixar</button>`;
+        <button class="btn-dl" id="dl-${i}">⬇ Baixar PNG</button>`;
     }
     strip.appendChild(slot);
     // Attach download listener AFTER innerHTML is set (avoids onclick corruption from large base64)
@@ -1195,10 +1143,7 @@ async function renderCanvas(card,idx,total,topic,isBlurred,palName){
       ctx.textAlign="left";
     } else {
       // TITLE, two-color, centered
-      const isQcard=(S.size==="curto"&&isOddCard&&!isGanchoCard);
-      const isAcard=(S.size==="curto"&&!isOddCard);
-      const tfPx=isQcard?"900 86px":isAcard?"900 64px":"900 72px";
-      const tf=tfPx+" 'Playfair Display',Georgia,serif"; ctx.font=tf;
+      const tf=(S.size==="curto"&&!isGanchoCard?"900 86px":"900 72px")+" 'Playfair Display',Georgia,serif"; ctx.font=tf;
       const maxTW=W-128;
       const tparts=(card.title||"").split(/(\[[^\]]+\])/);
       const twords=[];
@@ -1210,13 +1155,11 @@ async function renderCanvas(card,idx,total,topic,isBlurred,palName){
       twords.forEach(item=>{ const ww=ctx.measureText(item.w+" ").width; if(cw+ww>maxTW&&cl.length){tlines.push(cl);cl=[item];cw=ww;}else{cl.push(item);cw+=ww;} });
       if(cl.length)tlines.push(cl);
 
-      const tlineH = isQcard ? 104 : isAcard ? 76 : 88, numTL=Math.min(tlines.length,5);
+      const tlineH = (S.size==="curto" && !isGanchoCard) ? 104 : 88, numTL=Math.min(tlines.length,5);
       const bFont=S.size==="curto"?"700 46px Inter,sans-serif":"400 34px Inter,sans-serif";
       const isGanchoCard=(idx===0);
-      // PERGUNTA/RESPOSTA: odd cards = big question (no body), even cards = answer (with body)
-      // FRASES LONGAS: all cards have body
-      const isOddCard = (idx % 2 === 0); // 0-indexed: 0,2,4 are odd positions (cards 1,3,5)
-      const skipBody = isBlurred || isGanchoCard || (S.size==="curto" && isOddCard);
+      // FRASES CURTAS: no body on any card. FRASES LONGAS: body on all non-gancho cards.
+      const skipBody = isBlurred || isGanchoCard || (S.size==="curto");
       const bLines = skipBody ? [] : wt(ctx,card.body||"",maxTW,bFont);
       const numBL=Math.min(bLines.length,5), bLineH=S.size==="curto"?64:50;
       const gap=isBlurred?60:(numBL>0?44:0);
@@ -1229,7 +1172,7 @@ async function renderCanvas(card,idx,total,topic,isBlurred,palName){
       tlines.slice(0,5).forEach(line=>{
         const lineW=line.reduce((a,item)=>{ctx.font=tf;return a+ctx.measureText(item.w+" ").width;},0);
         let lx=W/2-lineW/2; ctx.textAlign="left";
-        line.forEach(item=>{ ctx.font=tf; ctx.fillStyle=item.accent?PAL.accent:(isAcard?"#2d4a6a":PAL.title); const wt=item.w+" "; ctx.fillText(wt,lx,ty); lx+=ctx.measureText(wt).width; });
+        line.forEach(item=>{ ctx.font=tf; ctx.fillStyle=item.accent?PAL.accent:PAL.title; const wt=item.w+" "; ctx.fillText(wt,lx,ty); lx+=ctx.measureText(wt).width; });
         ctx.textAlign="center"; ty+=tlineH;
       });
 
@@ -1264,67 +1207,56 @@ async function renderCanvas(card,idx,total,topic,isBlurred,palName){
     ctx.fillStyle=PAL.light?"rgba(26,42,74,.18)":"rgba(255,255,255,.12)";
     ctx.fillText("@drpedromartins",W-64-ctx.measureText("@drpedromartins").width,W-42);
   }
-  // Return dataURL directly — most reliable for download across all browsers
-  return Promise.resolve(C.toDataURL("image/png"));
+  // Use toDataURL for cross-browser compatibility (works on mobile/Safari)
+  const dataURL = C.toDataURL("image/jpeg", 0.92);
+  const arr = dataURL.split(","); const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]); let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while(n--){ u8arr[n] = bstr.charCodeAt(n); }
+  return Promise.resolve(new Blob([u8arr], {type: mime}));
 }
 
-// Download — iOS-aware
-var _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-// ── DOWNLOAD — render first, then download ──────────────────────
-function triggerDownload(dataURL, filename) {
-  var a = document.createElement("a");
-  a.setAttribute("href", dataURL);
-  a.setAttribute("download", filename);
-  a.style.cssText = "display:none;position:fixed;top:0;left:0";
-  document.body.appendChild(a);
+// Bulletproof download — works on all browsers including iOS Safari
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.style.cssText = "position:fixed;top:-100px;left:-100px;opacity:0";
+  document.documentElement.appendChild(a);
   a.click();
-  setTimeout(function(){ document.body.removeChild(a); }, 100);
+  setTimeout(function() {
+    document.documentElement.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 2000);
 }
-
 async function dlCard(i){
-  var card = S.cards[i]; if(!card) return;
-  var btn = document.getElementById("dl-"+i);
-  btn.textContent = "⏳"; btn.disabled = true;
-  try {
-    var topic = document.getElementById("topic").value.trim();
-    var ib = S.blur && !card._type && i > 0 && i < S.cards.length-(S.contact?2:1);
-    var dataURL = await renderCanvas(card, i, S.cards.length, topic, ib, S.palette);
-    triggerDownload(dataURL, "card-"+(i+1)+".png");
-    btn.textContent = "✓ Salvo!"; btn.classList.add("done");
-    setTimeout(function(){ btn.textContent = "⬇ Baixar"; btn.classList.remove("done"); btn.disabled = false; }, 2500);
-  } catch(e) {
-    btn.textContent = "⬇ Baixar"; btn.disabled = false; console.error(e);
-  }
+  const card=S.cards[i];if(!card)return;
+  const btn=document.getElementById("dl-"+i); btn.textContent="⏳"; btn.disabled=true;
+  try{
+    const topic=document.getElementById("topic").value.trim();
+    const ib=S.blur&&!card._type&&i>0&&i<S.cards.length-(S.contact?2:1);
+    const blob=await renderCanvas(card,i,S.cards.length,topic,ib,S.palette);
+    triggerDownload(blob,"card-"+(i+1)+".jpg");
+    btn.classList.add("done");btn.textContent="✓ Salvo!";
+    setTimeout(()=>{btn.classList.remove("done");btn.textContent="⬇ Baixar";btn.disabled=false;},2500);
+  }catch(e){btn.textContent="⬇ Baixar";btn.disabled=false;console.error(e);}
 }
 
 async function dlAll(){
-  var btn = document.getElementById("btnAll");
-  btn.disabled = true;
-  var topic = document.getElementById("topic").value.trim() || "cards";
-  var slug = topic.replace(/\s+/g,"-").toLowerCase().slice(0,22);
-  
-  // Step 1: render ALL cards first
-  btn.textContent = "⏳ Renderizando…";
-  var blobs = [];
-  for(var i = 0; i < S.cards.length; i++){
-    btn.textContent = "⏳ Preparando " + (i+1) + "/" + S.cards.length;
-    try {
-      var ib = S.blur && !S.cards[i]._type && i > 0 && i < S.cards.length-(S.contact?2:1);
-      var dataURL = await renderCanvas(S.cards[i], i, S.cards.length, topic, ib, S.palette);
-      blobs.push({dataURL: dataURL, name: slug+"-card-"+(i+1)+".png"});
-    } catch(e){ console.error("Render card "+(i+1)+" error:", e); blobs.push(null); }
+  const btn=document.getElementById("btnAll"); btn.disabled=true;
+  const topic=document.getElementById("topic").value.trim()||"cards";
+  const slug=topic.replace(/\s+/g,"-").toLowerCase().slice(0,22);
+  for(let i=0;i<S.cards.length;i++){
+    btn.textContent="⏳ "+(i+1)+"/"+S.cards.length+"…";
+    try{
+      const ib=S.blur&&!S.cards[i]._type&&i>0&&i<S.cards.length-(S.contact?2:1);
+      const blob=await renderCanvas(S.cards[i],i,S.cards.length,topic,ib,S.palette);
+      triggerDownload(blob,slug+"-card-"+(i+1)+".jpg");
+      await new Promise(r=>setTimeout(r,1200));
+    }catch(e){ console.error("Card "+(i+1)+" error:",e); }
   }
-  
-  // Step 2: download all, one per second
-  btn.textContent = "⏳ Baixando…";
-  for(var j = 0; j < blobs.length; j++){
-    if(!blobs[j]) continue;
-    triggerDownload(blobs[j].dataURL, blobs[j].name);
-    await new Promise(function(r){ setTimeout(r, 800); });
-  }
-  
-  btn.disabled = false;
-  btn.textContent = "⬇ Baixar todos os " + S.cards.length + " cards";
+  btn.disabled=false;btn.textContent="⬇ Baixar todos os "+S.cards.length+" cards";
 }
 
 function cpCaption(){navigator.clipboard.writeText(S.caption).then(()=>{const b=document.getElementById("btnCp");b.textContent="✓ Copiado!";setTimeout(()=>b.textContent="📋 Copiar legenda",2400);});}
@@ -1333,79 +1265,6 @@ function showErr(m){const b=document.getElementById("err");b.textContent=m;b.sty
 function hideErr(){document.getElementById("err").style.display="none";}
 
 
-
-// ── URL READER ──────────────────────────────────────────────────
-async function readURL() {
-  var url = document.getElementById("urlInput").value.trim();
-  if(!url) { alert("Cole uma URL primeiro."); return; }
-  if(!url.startsWith("http")) url = "https://" + url;
-
-  var btn = document.getElementById("btnUrl");
-  var status = document.getElementById("urlStatus");
-  btn.disabled = true; btn.textContent = "⏳ Lendo...";
-  status.className = "url-status loading";
-  status.textContent = "Lendo o conteúdo da página...";
-
-  try {
-    var resp = await fetch("/api/generate", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 800,
-        tools: [{"type": "web_search_20250305", "name": "web_search"}],
-        system: "Voce acessa URLs e extrai o conteudo principal. Retorne APENAS JSON valido sem markdown.",
-        messages: [{
-          role: "user",
-          content: "Acesse esta URL e extraia o conteudo principal: " + url + "\n\nRetorne JSON: {\"titulo\": \"titulo do artigo\", \"assunto\": \"tema em 5 palavras para carrossel juridico\", \"resumo\": \"resumo do conteudo em 2 frases\"}"
-        }]
-      })
-    });
-
-    if(!resp.ok) throw new Error("Erro HTTP " + resp.status);
-    var data = await resp.json();
-    if(data.error) throw new Error(data.error.message || "Erro na API");
-
-    // Extract text from response (may have tool_use blocks)
-    var raw = (data.content || [])
-      .filter(function(b) { return b.type === "text"; })
-      .map(function(b) { return b.text; })
-      .join("").trim();
-
-    if(!raw) throw new Error("Nao foi possivel ler o conteudo. Tente uma URL diferente.");
-
-    // Parse JSON
-    var parsed = null;
-    try { parsed = JSON.parse(raw); } catch(_) {
-      var m = raw.match(/\{[\s\S]*\}/);
-      if(m) { try { parsed = JSON.parse(m[0]); } catch(_) {} }
-    }
-
-    if(!parsed || !parsed.assunto) throw new Error("Conteudo nao reconhecido. Verifique a URL.");
-
-    // Fill topic field
-    var topic = parsed.assunto || parsed.titulo || "";
-    document.getElementById("topic").value = topic;
-    checkDateSensitive(topic);
-
-    // Fill obs with summary
-    if(parsed.resumo) {
-      var obs = document.getElementById("obsInput");
-      if(obs) obs.value = "Baseado em: " + (parsed.titulo || url) + ". " + parsed.resumo;
-    }
-
-    status.className = "url-status ok";
-    status.textContent = "✅ Lido! Assunto preenchido: \"" + topic + "\" — ajuste se quiser e clique em Gerar Carrossel.";
-
-    window.scrollTo({top: document.getElementById("topic").offsetTop - 20, behavior: "smooth"});
-
-  } catch(e) {
-    status.className = "url-status err";
-    status.textContent = "❌ " + e.message;
-  } finally {
-    btn.disabled = false; btn.textContent = "🔗 Ler";
-  }
-}
 // ── TEMAS EM ALTA ─────────────────────────────────────────────────
 async function loadTemas() {
   const btn = document.getElementById("btnTemas");
@@ -1456,35 +1315,6 @@ async function loadTemas() {
     btn.disabled = false; btn.textContent = "Atualizar Temas em Alta";
   }
 }
-function loadSugestoes() {
-  var btn = document.getElementById("btnSugestoes");
-  var res = document.getElementById("sugestoesResult");
-  if(btn) btn.style.display = "none";
-  var cats = [
-    {name:"Direito do Trabalho", icon:"⚖️", temas:["FGTS nao depositado","Horas extras nao pagas","Rescisao indireta","Justa causa sem motivo","Trabalho sem carteira","Assedio moral","Direitos da gestante","Acidente de trabalho","Insalubridade","Verbas rescisorias","Diarista 3x na semana","5 dia util","Demissao por represalia","PDC o que e"]},
-    {name:"Previdenciario", icon:"🏥", temas:["Aposentadoria por contribuicao","Auxilio-doenca negado","BPC LOAS","Pente-fino INSS","Beneficio negado","Burnout e afastamento","Depressao e beneficio","Incapacidade laboral","Aposentadoria especial","Revisao de beneficio"]},
-    {name:"Institucional", icon:"🏛️", temas:["Bastidores de audiencia","Rotina do advogado","Como escolher advogado","O que fazemos","Nossa historia","Dia do Trabalhador","Consulta pelo WhatsApp","Por que advogado trabalhista"]}
-  ];
-  var container = document.createElement("div");
-  cats.forEach(function(cat) {
-    var catDiv = document.createElement("div"); catDiv.className = "sug-cat";
-    var title = document.createElement("div"); title.className = "sug-cat-title";
-    title.textContent = cat.icon + " " + cat.name;
-    catDiv.appendChild(title);
-    var chips = document.createElement("div"); chips.className = "sug-chips";
-    cat.temas.forEach(function(t) {
-      var btn2 = document.createElement("button"); btn2.className = "sug-chip";
-      btn2.textContent = "✚ " + t;
-      btn2.addEventListener("click", (function(tema){ return function(){ usarTema(tema); }; })(t));
-      chips.appendChild(btn2);
-    });
-    catDiv.appendChild(chips);
-    container.appendChild(catDiv);
-  });
-  res.innerHTML = "";
-  res.appendChild(container);
-}
-
 function usarTema(tema, numCards) {
   document.getElementById("topic").value = tema;
   checkDateSensitive(tema);
